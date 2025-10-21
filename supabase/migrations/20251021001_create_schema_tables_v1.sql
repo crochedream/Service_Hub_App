@@ -6,9 +6,6 @@ GRANT ALL ON ALL TABLES IN SCHEMA speclean_services TO postgres, anon, authentic
 GRANT ALL ON ALL SEQUENCES IN SCHEMA speclean_services TO postgres, anon, authenticated, service_role;
 
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA speclean_services;
-
 -- User Roles Enum
 CREATE TYPE speclean_services.user_role AS ENUM (
   'app_admin',
@@ -47,7 +44,7 @@ CREATE TYPE speclean_services.cleaner_status AS ENUM (
 -- =============================================
 CREATE TABLE speclean_services.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role user_role NOT NULL,
+  role speclean_services.user_role NOT NULL,
   --full_name TEXT NOT NULL,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
@@ -71,7 +68,7 @@ CREATE TABLE speclean_services.profiles (
 -- CLEANING SERVICES TABLE (Franchises)
 -- =============================================
 CREATE TABLE speclean_services.cleaning_services (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_name TEXT NOT NULL,
   business_license TEXT,
   business_address TEXT NOT NULL,
@@ -80,11 +77,11 @@ CREATE TABLE speclean_services.cleaning_services (
   phone TEXT NOT NULL,
   email TEXT NOT NULL,
   status speclean_services.service_status DEFAULT 'pending_approval',
-  approved_by UUID REFERENCES profiles(id),
+  approved_by UUID REFERENCES speclean_services.profiles(id),
   approved_at TIMESTAMP WITH TIME ZONE,
   rejection_reason TEXT,
   is_active BOOLEAN DEFAULT true,
-  created_by UUID NOT NULL REFERENCES profiles(id), -- First service admin who created it
+  created_by UUID NOT NULL REFERENCES speclean_services.profiles(id), -- First service admin who created it
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -93,14 +90,14 @@ CREATE TABLE speclean_services.cleaning_services (
 -- SERVICE ADMINS TABLE (Multiple admins per service)
 -- =============================================
 CREATE TABLE speclean_services.service_admins (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   service_id UUID NOT NULL REFERENCES speclean_services.cleaning_services(id) ON DELETE CASCADE,
   admin_id UUID NOT NULL REFERENCES speclean_services.profiles(id) ON DELETE CASCADE,
   is_primary BOOLEAN DEFAULT false, -- Primary admin (owner)
   can_manage_admins BOOLEAN DEFAULT false,
   can_manage_branches BOOLEAN DEFAULT true,
   can_view_financials BOOLEAN DEFAULT false,
-  assigned_by UUID REFERENCES profiles(id),
+  assigned_by UUID REFERENCES speclean_services.profiles(id),
   assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   
   CONSTRAINT unique_service_admin_pair UNIQUE(service_id, admin_id)
@@ -110,7 +107,7 @@ CREATE TABLE speclean_services.service_admins (
 -- BRANCHES TABLE
 -- =============================================
 CREATE TABLE speclean_services.branches (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   service_id UUID NOT NULL REFERENCES speclean_services.cleaning_services(id) ON DELETE CASCADE,
   branch_name TEXT NOT NULL,
   address TEXT NOT NULL,
@@ -124,7 +121,7 @@ CREATE TABLE speclean_services.branches (
   operating_hours JSONB, -- {"monday": {"open": "09:00", "close": "18:00"}, ...}
   status speclean_services.branch_status DEFAULT 'active',
   is_active BOOLEAN DEFAULT true, -- Soft delete flag
-  created_by UUID NOT NULL REFERENCES profiles(id),
+  created_by UUID NOT NULL REFERENCES speclean_services.profiles(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -133,14 +130,14 @@ CREATE TABLE speclean_services.branches (
 -- BRANCH ADMINS TABLE (Multiple admins per branch)
 -- =============================================
 CREATE TABLE speclean_services.branch_admins (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   branch_id UUID NOT NULL REFERENCES speclean_services.branches(id) ON DELETE CASCADE,
   admin_id UUID NOT NULL REFERENCES speclean_services.profiles(id) ON DELETE CASCADE,
   is_primary BOOLEAN DEFAULT false, -- Primary branch manager
   can_manage_cleaners BOOLEAN DEFAULT true,
   can_manage_bookings BOOLEAN DEFAULT true,
   can_view_reports BOOLEAN DEFAULT false,
-  assigned_by UUID REFERENCES profiles(id),
+  assigned_by UUID REFERENCES speclean_services.profiles(id),
   assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   
   CONSTRAINT unique_branch_admin_pair UNIQUE(branch_id, admin_id)
@@ -170,7 +167,7 @@ CREATE TABLE speclean_services.cleaners (
 -- CLEANER BRANCH ASSIGNMENTS (Cleaners can work in multiple branches)
 -- =============================================
 CREATE TABLE speclean_services.cleaner_branch_assignments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cleaner_id UUID NOT NULL REFERENCES speclean_services.cleaners(id) ON DELETE CASCADE,
   branch_id UUID NOT NULL REFERENCES speclean_services.branches(id) ON DELETE CASCADE,
   is_primary_branch BOOLEAN DEFAULT false,
@@ -195,7 +192,7 @@ CREATE TABLE speclean_services.customers (
 -- CUSTOMER ADDRESSES
 -- =============================================
 CREATE TABLE speclean_services.customer_addresses (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES speclean_services.customers(id) ON DELETE CASCADE,
   label TEXT DEFAULT 'Home', -- Home, Office, Other
   address_line TEXT NOT NULL,
@@ -220,11 +217,11 @@ CREATE UNIQUE INDEX one_default_per_customer
 -- INVITATION TOKENS (for staff onboarding)
 -- =============================================
 CREATE TABLE speclean_services.invitation_tokens (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL,
   phone TEXT,
   token TEXT UNIQUE NOT NULL,
-  role user_role NOT NULL,
+  role speclean_services.user_role NOT NULL,
   invited_by UUID NOT NULL REFERENCES speclean_services.profiles(id),
   service_id UUID REFERENCES speclean_services.cleaning_services(id),
   branch_id UUID REFERENCES speclean_services.branches(id),

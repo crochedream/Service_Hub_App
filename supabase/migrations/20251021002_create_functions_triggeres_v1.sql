@@ -9,13 +9,13 @@ $$ LANGUAGE plpgsql;
 
 -- Triggers for updated_at
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON speclean_services.profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION speclean_services.update_updated_at_column();
 
 CREATE TRIGGER update_cleaning_services_updated_at BEFORE UPDATE ON speclean_services.cleaning_services
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION speclean_services.update_updated_at_column();
 
 CREATE TRIGGER update_branches_updated_at BEFORE UPDATE ON speclean_services.branches
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION speclean_services.update_updated_at_column();
 
 -- Function to automatically create profile when auth user is created
 CREATE OR REPLACE FUNCTION speclean_services.handle_new_user()
@@ -64,5 +64,5 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER on_service_created_add_admin
   AFTER INSERT ON speclean_services.cleaning_services
-  FOR EACH ROW EXECUTE FUNCTION add_service_admin_on_service_creation();
+  FOR EACH ROW EXECUTE FUNCTION speclean_services.add_service_admin_on_service_creation();
 
