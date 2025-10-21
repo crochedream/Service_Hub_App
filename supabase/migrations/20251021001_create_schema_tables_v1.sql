@@ -1,11 +1,16 @@
 -- Cleaning Service Database Schema cleaning_service_hub
-CREATE SCHEMA IF NOT EXISTS public;
+CREATE SCHEMA IF NOT EXISTS speclean_services;
+
+GRANT USAGE ON SCHEMA speclean_services TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA speclean_services TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA speclean_services TO postgres, anon, authenticated, service_role;
+
 
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA public;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA speclean_services;
 
 -- User Roles Enum
-CREATE TYPE public.user_role AS ENUM (
+CREATE TYPE speclean_services.user_role AS ENUM (
   'app_admin',
   'service_admin',
   'branch_admin',
@@ -14,7 +19,7 @@ CREATE TYPE public.user_role AS ENUM (
 );
 
 -- Service Status Enum (for franchise approval)
-CREATE TYPE public.service_status AS ENUM (
+CREATE TYPE speclean_services.service_status AS ENUM (
   'pending_approval',
   'approved',
   'rejected',
@@ -22,7 +27,7 @@ CREATE TYPE public.service_status AS ENUM (
 );
 
 -- Branch Status Enum (for individual branch operations)
-CREATE TYPE public.branch_status AS ENUM (
+CREATE TYPE speclean_services.branch_status AS ENUM (
   'active',
   'inactive',
   'temporarily_closed',
@@ -30,7 +35,7 @@ CREATE TYPE public.branch_status AS ENUM (
 );
 
 -- Cleaner Status Enum
-CREATE TYPE public.cleaner_status AS ENUM (
+CREATE TYPE speclean_services.cleaner_status AS ENUM (
   'active',
   'inactive',
   'on_leave',
@@ -40,7 +45,7 @@ CREATE TYPE public.cleaner_status AS ENUM (
 -- =============================================
 -- PROFILES TABLE (extends Supabase auth.users)
 -- =============================================
-CREATE TABLE public.profiles (
+CREATE TABLE speclean_services.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   role user_role NOT NULL,
   --full_name TEXT NOT NULL,
@@ -65,7 +70,7 @@ CREATE TABLE public.profiles (
 -- =============================================
 -- CLEANING SERVICES TABLE (Franchises)
 -- =============================================
-CREATE TABLE public.cleaning_services (
+CREATE TABLE speclean_services.cleaning_services (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   business_name TEXT NOT NULL,
   business_license TEXT,
@@ -74,7 +79,7 @@ CREATE TABLE public.cleaning_services (
   description TEXT,
   phone TEXT NOT NULL,
   email TEXT NOT NULL,
-  status public.service_status DEFAULT 'pending_approval',
+  status speclean_services.service_status DEFAULT 'pending_approval',
   approved_by UUID REFERENCES profiles(id),
   approved_at TIMESTAMP WITH TIME ZONE,
   rejection_reason TEXT,
@@ -87,10 +92,10 @@ CREATE TABLE public.cleaning_services (
 -- =============================================
 -- SERVICE ADMINS TABLE (Multiple admins per service)
 -- =============================================
-CREATE TABLE public.service_admins (
+CREATE TABLE speclean_services.service_admins (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  service_id UUID NOT NULL REFERENCES public.cleaning_services(id) ON DELETE CASCADE,
-  admin_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  service_id UUID NOT NULL REFERENCES speclean_services.cleaning_services(id) ON DELETE CASCADE,
+  admin_id UUID NOT NULL REFERENCES speclean_services.profiles(id) ON DELETE CASCADE,
   is_primary BOOLEAN DEFAULT false, -- Primary admin (owner)
   can_manage_admins BOOLEAN DEFAULT false,
   can_manage_branches BOOLEAN DEFAULT true,
@@ -104,9 +109,9 @@ CREATE TABLE public.service_admins (
 -- =============================================
 -- BRANCHES TABLE
 -- =============================================
-CREATE TABLE public.branches (
+CREATE TABLE speclean_services.branches (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  service_id UUID NOT NULL REFERENCES public.cleaning_services(id) ON DELETE CASCADE,
+  service_id UUID NOT NULL REFERENCES speclean_services.cleaning_services(id) ON DELETE CASCADE,
   branch_name TEXT NOT NULL,
   address TEXT NOT NULL,
   city TEXT NOT NULL,
@@ -117,7 +122,7 @@ CREATE TABLE public.branches (
   service_radius_km DECIMAL(5, 2) DEFAULT 10.0,
   phone TEXT NOT NULL,
   operating_hours JSONB, -- {"monday": {"open": "09:00", "close": "18:00"}, ...}
-  status public.branch_status DEFAULT 'active',
+  status speclean_services.branch_status DEFAULT 'active',
   is_active BOOLEAN DEFAULT true, -- Soft delete flag
   created_by UUID NOT NULL REFERENCES profiles(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -127,10 +132,10 @@ CREATE TABLE public.branches (
 -- =============================================
 -- BRANCH ADMINS TABLE (Multiple admins per branch)
 -- =============================================
-CREATE TABLE public.branch_admins (
+CREATE TABLE speclean_services.branch_admins (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  branch_id UUID NOT NULL REFERENCES public.branches(id) ON DELETE CASCADE,
-  admin_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  branch_id UUID NOT NULL REFERENCES speclean_services.branches(id) ON DELETE CASCADE,
+  admin_id UUID NOT NULL REFERENCES speclean_services.profiles(id) ON DELETE CASCADE,
   is_primary BOOLEAN DEFAULT false, -- Primary branch manager
   can_manage_cleaners BOOLEAN DEFAULT true,
   can_manage_bookings BOOLEAN DEFAULT true,
@@ -144,14 +149,14 @@ CREATE TABLE public.branch_admins (
 -- =============================================
 -- CLEANERS TABLE (Staff)
 -- =============================================
-CREATE TABLE public.cleaners (
-  id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+CREATE TABLE speclean_services.cleaners (
+  id UUID PRIMARY KEY REFERENCES speclean_services.profiles(id) ON DELETE CASCADE,
   employee_id TEXT,
   id_number TEXT,
   date_of_birth DATE,
   emergency_contact TEXT,
   emergency_phone TEXT,
-  status public.cleaner_status DEFAULT 'active',
+  status speclean_services.cleaner_status DEFAULT 'active',
   leave_start_date DATE,
   leave_end_date DATE,
   termination_date DATE,
@@ -164,12 +169,12 @@ CREATE TABLE public.cleaners (
 -- =============================================
 -- CLEANER BRANCH ASSIGNMENTS (Cleaners can work in multiple branches)
 -- =============================================
-CREATE TABLE public.cleaner_branch_assignments (
+CREATE TABLE speclean_services.cleaner_branch_assignments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  cleaner_id UUID NOT NULL REFERENCES public.cleaners(id) ON DELETE CASCADE,
-  branch_id UUID NOT NULL REFERENCES public.branches(id) ON DELETE CASCADE,
+  cleaner_id UUID NOT NULL REFERENCES speclean_services.cleaners(id) ON DELETE CASCADE,
+  branch_id UUID NOT NULL REFERENCES speclean_services.branches(id) ON DELETE CASCADE,
   is_primary_branch BOOLEAN DEFAULT false,
-  assigned_by UUID REFERENCES public.profiles(id),
+  assigned_by UUID REFERENCES speclean_services.profiles(id),
   assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   
   CONSTRAINT unique_cleaner_branch_pair UNIQUE(cleaner_id, branch_id)
@@ -178,8 +183,8 @@ CREATE TABLE public.cleaner_branch_assignments (
 -- =============================================
 -- CUSTOMERS TABLE
 -- =============================================
-CREATE TABLE public.customers (
-  id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+CREATE TABLE speclean_services.customers (
+  id UUID PRIMARY KEY REFERENCES speclean_services.profiles(id) ON DELETE CASCADE,
   preferred_payment_method TEXT,
   total_bookings INTEGER DEFAULT 0,
   loyalty_points INTEGER DEFAULT 0,
@@ -189,9 +194,9 @@ CREATE TABLE public.customers (
 -- =============================================
 -- CUSTOMER ADDRESSES
 -- =============================================
-CREATE TABLE public.customer_addresses (
+CREATE TABLE speclean_services.customer_addresses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES speclean_services.customers(id) ON DELETE CASCADE,
   label TEXT DEFAULT 'Home', -- Home, Office, Other
   address_line TEXT NOT NULL,
   city TEXT NOT NULL,
@@ -208,21 +213,21 @@ CREATE TABLE public.customer_addresses (
 
 --- create this and commented above constraint
 CREATE UNIQUE INDEX one_default_per_customer 
-  ON public.customer_addresses(customer_id) 
+  ON speclean_services.customer_addresses(customer_id) 
   WHERE is_default = true;
 
 -- =============================================
 -- INVITATION TOKENS (for staff onboarding)
 -- =============================================
-CREATE TABLE public.invitation_tokens (
+CREATE TABLE speclean_services.invitation_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email TEXT NOT NULL,
   phone TEXT,
   token TEXT UNIQUE NOT NULL,
   role user_role NOT NULL,
-  invited_by UUID NOT NULL REFERENCES public.profiles(id),
-  service_id UUID REFERENCES public.cleaning_services(id),
-  branch_id UUID REFERENCES public.branches(id),
+  invited_by UUID NOT NULL REFERENCES speclean_services.profiles(id),
+  service_id UUID REFERENCES speclean_services.cleaning_services(id),
+  branch_id UUID REFERENCES speclean_services.branches(id),
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
   used_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
