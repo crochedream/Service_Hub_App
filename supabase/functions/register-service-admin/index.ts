@@ -27,6 +27,8 @@ serve(async (req) => {
 
   try {
     const dbSchema = Deno.env.get('DB_SCHEMA') || 'public';
+    console.log('📂 Schema:', dbSchema);
+    
     const body: ServiceAdminRequest = await req.json();
     console.log('📥 Registration request for:', body.email);
 
