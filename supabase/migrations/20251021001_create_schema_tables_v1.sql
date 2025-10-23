@@ -1,10 +1,51 @@
 -- Cleaning Service Database Schema cleaning_service_hub
 CREATE SCHEMA IF NOT EXISTS speclean_services;
 
-GRANT USAGE ON SCHEMA speclean_services TO postgres, anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA speclean_services TO postgres, anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA speclean_services TO postgres, anon, authenticated, service_role;
+-- ========================================
+-- GRANT PERMISSIONS FOR speclean_services SCHEMA
+-- ========================================
 
+-- Step 1: Grant schema usage
+GRANT USAGE ON SCHEMA speclean_services TO anon;
+GRANT USAGE ON SCHEMA speclean_services TO authenticated;
+GRANT ALL ON SCHEMA speclean_services TO service_role;
+
+-- Step 2: Grant table permissions
+GRANT ALL ON ALL TABLES IN SCHEMA speclean_services TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA speclean_services TO authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA speclean_services TO anon;
+
+-- Step 3: Grant sequence permissions
+GRANT ALL ON ALL SEQUENCES IN SCHEMA speclean_services TO service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA speclean_services TO authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA speclean_services TO anon;
+
+-- Step 4: Grant function permissions
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA speclean_services TO service_role;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA speclean_services TO authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA speclean_services TO anon;
+
+-- Step 5: Set default privileges for future objects
+ALTER DEFAULT PRIVILEGES IN SCHEMA speclean_services 
+GRANT ALL ON TABLES TO service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA speclean_services 
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA speclean_services 
+GRANT SELECT ON TABLES TO anon;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA speclean_services 
+GRANT ALL ON SEQUENCES TO service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA speclean_services 
+GRANT USAGE, SELECT ON SEQUENCES TO authenticated;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA speclean_services 
+GRANT ALL ON FUNCTIONS TO service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA speclean_services 
+GRANT EXECUTE ON FUNCTIONS TO authenticated;
 
 -- User Roles Enum
 CREATE TYPE speclean_services.user_role AS ENUM (
